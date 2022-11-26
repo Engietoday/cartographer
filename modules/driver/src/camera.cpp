@@ -1,4 +1,4 @@
-#include "camera.h"
+#include "driver/include/camera.h"
 
 void Camera::seekrenderer_close_window(seekrenderer_t* renderer){
     if(renderer->is_active.load())

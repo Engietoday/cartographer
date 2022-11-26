@@ -16,7 +16,7 @@
 #include "seekframe/seekframe.h"
 
 // User
-#include "observer.h"
+#include "pattern/observer.h"
 
 struct seekrenderer_t
 {

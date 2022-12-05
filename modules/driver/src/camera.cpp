@@ -1,4 +1,4 @@
-#include "camera.h"
+#include "driver/include/camera.h"
 
 void Camera::seekrenderer_close_window(seekrenderer_t* renderer){
     if(renderer->is_active.load())
@@ -14,12 +14,11 @@ void Camera::seekrenderer_close_window(seekrenderer_t* renderer){
 void handle_camera_frame_available(seekcamera_t* camera, seekcamera_frame_t* camera_frame, void* user_data)
 {
 	(void)camera;
-	auto* renderer = (seekrenderer_t*) &(((Camera*)user_data)->camera_state);
+	seekrenderer_t* renderer = ((Camera*)user_data)->g_renderers[camera];
 
 	// Lock the seekcamera frame for safe use outside of this callback.
 	seekcamera_frame_lock(camera_frame);
 	renderer->is_dirty.store(true);
-
 	// Note that this will always render the most recent frame. There could be better buffering here but this is a simple example.
 	renderer->frame = camera_frame;
 }
@@ -27,6 +26,11 @@ void handle_camera_frame_available(seekcamera_t* camera, seekcamera_frame_t* cam
 // Handles camera connect events.
 void handle_camera_connect(seekcamera_t* camera, seekcamera_error_t event_status, void* user_data)
 {
+
+#ifdef DEBUG_CFG
+	std::cout << "Camera Connected" << std::endl;
+#endif
+
 	(void)event_status;
 	//(void)user_data;
 	seekrenderer_t* renderer = ((Camera*)user_data)->g_renderers[camera] == nullptr ? new seekrenderer_t() : ((Camera*)user_data)->g_renderers[camera];
@@ -34,7 +38,7 @@ void handle_camera_connect(seekcamera_t* camera, seekcamera_error_t event_status
 	renderer->camera = camera;
 
 	// Register a frame available callback function.
-	seekcamera_error_t status = seekcamera_register_frame_available_callback(camera, handle_camera_frame_available, (void*)renderer);
+	seekcamera_error_t status = seekcamera_register_frame_available_callback(camera, handle_camera_frame_available, user_data);
 	if(status != SEEKCAMERA_SUCCESS)
 	{
 		std::cerr << "failed to register frame callback: " << seekcamera_error_get_str(status) << std::endl;
@@ -56,6 +60,10 @@ void handle_camera_connect(seekcamera_t* camera, seekcamera_error_t event_status
 // Handles camera disconnect events.
 void handle_camera_disconnect(seekcamera_t* camera, seekcamera_error_t event_status, void* user_data)
 {
+#ifdef DEBUG_CFG
+	std::cout << "Camera Disconnected" << std::endl;
+#endif
+
 	(void)event_status;
 	//(void)user_data;
 	seekrenderer_t* renderer = ((Camera*)user_data)->g_renderers[camera];
@@ -134,16 +142,17 @@ uint8_t Camera::init()
 		std::cerr << "failed to register camera event callback: " << seekcamera_error_get_str(status) << std::endl;
 		return 1;
 	}
+	return 0;
 }
 
 void Camera::getFrame()
 {
-
     seekcamera_error_t status;
 
     for(auto& kvp : this->g_renderers)
     {
         seekrenderer_t* renderer = kvp.second;
+
         if(renderer == NULL)
             break;
         // Render frame if necessary
@@ -151,10 +160,9 @@ void Camera::getFrame()
         {
             if(renderer->frame == NULL || !renderer->is_active.load())
                 break;
-
             // Get the frame to draw.
-            //seekframe_t* frame = nullptr;
-            status = seekcamera_frame_get_frame_by_format(renderer->frame, SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888, &frame);
+			this->frame = nullptr;
+            status = seekcamera_frame_get_frame_by_format(renderer->frame, SEEKCAMERA_FRAME_FORMAT_COLOR_ARGB8888, &(this->frame));
             if(status != SEEKCAMERA_SUCCESS)
             {
                 std::cerr << "failed to get frame: " << seekcamera_error_get_str(status) << std::endl;
@@ -167,8 +175,11 @@ void Camera::getFrame()
             const int frame_height = (int)seekframe_get_height(frame);
             const int frame_stride = (int)seekframe_get_line_stride(frame);
 
-            seekframe_get_data(frame);
+            //seekframe_get_data(frame);
 
+#ifdef DEBUG_CFG
+			//std::cout << "New frame from camera." << std::endl;
+#endif
             // Unlock the camera frame.
             seekcamera_frame_unlock(renderer->frame);
             renderer->is_dirty.store(false);
@@ -180,4 +191,24 @@ void Camera::getFrame()
         if(!renderer->is_active.load())
             seekrenderer_close_window(renderer);
     }
+}
+
+// Switches the current color palette.
+// Settings will be refreshed between frames.
+bool Camera::seekrenderer_switch_color_palette()
+{    
+	seekcamera_color_palette_t current_palette;
+	seekrenderer_t* renderer;
+	for(auto& kvp : this->g_renderers)
+    {
+        renderer = kvp.second;
+		//std::cout << "Attempt to switch color pallet" << std::endl;
+		if(seekcamera_get_color_palette(renderer->camera, &current_palette) != SEEKCAMERA_SUCCESS)
+			return false;
+
+		// Not including the user palettes so we will cycle back to the beginning once GREEN is hit
+		current_palette = (seekcamera_color_palette_t)((current_palette + 1) % SEEKCAMERA_COLOR_PALETTE_USER_0);
+		//std::cout << "color palette: " << seekcamera_color_palette_get_str(current_palette) << std::endl;
+	}
+	return seekcamera_set_color_palette(renderer->camera, current_palette) == SEEKCAMERA_SUCCESS;
 }

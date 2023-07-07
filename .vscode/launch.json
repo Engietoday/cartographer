@@ -1,0 +1,13 @@
+{
+    "version": "2.0.0",
+    "configurations": [
+        {
+            "name": "Debug",
+            "type": "gdb",
+            "request": "launch",
+            "target": "./Debug/cartographer",
+            "cwd": "${workspaceRoot}",
+            "preLaunchTask": "build"
+        }
+    ]
+}

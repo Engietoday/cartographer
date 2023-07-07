@@ -16,7 +16,7 @@ enum CrosshairType{
     CROSSHAIR_STATIC,
     CROSSHAIR_DYNAMIC
 };
-
+extern void ScreenUserEvent(int event, int x, int y, int flags, void* userdata);
 class FrameManager : public IObserver<seekframe_t*>
 {
     public:
@@ -26,6 +26,14 @@ class FrameManager : public IObserver<seekframe_t*>
 
         FrameManager(Camera &subject) : subject_(subject){
             this->subject_.Attach(this);
+            bgsubtractor->setVarThreshold(2);
+            cv::namedWindow("Display", cv::WINDOW_NORMAL);
+            //set the callback function for any mouse event
+            cv::setMouseCallback("Display", ScreenUserEvent, this);
+        #ifdef DISPLAY_FULLSCREEN
+            cv::setWindowProperty("Display", cv::WND_PROP_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+        #endif
+            //cv::imshow("Display", *(this->displayFrame));
         }
 
         ~FrameManager(){  
@@ -38,9 +46,12 @@ class FrameManager : public IObserver<seekframe_t*>
         void removeFromSubject();
         void drawCorsshair(cv::Mat &_img, CrosshairType _crosshair_type, int);
         void pictureInPicture(cv::Mat &_src, cv::Rect _roi);
+        int _zoom_level = MAX_ZOOM_LEVEL;
+        bool _pic_in_pic_enabled = false;
         Camera &subject_;
     private:
-        
+        cv::Ptr<cv::BackgroundSubtractorMOG2> bgsubtractor= cv::createBackgroundSubtractorMOG2();
+        bool update_bg_model = true;
 
         std::vector<cv::Mat> _frame_buff;
 };

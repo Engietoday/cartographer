@@ -101,12 +101,17 @@ void camera_event_callback(seekcamera_t* camera, seekcamera_manager_event_t even
 	seekcamera_chipid_t cid{};
 	seekcamera_get_chipid(camera, &cid);
 	std::cout << seekcamera_manager_get_event_str(event) << " (CID: " << cid << ")" << std::endl;
+	seekcamera_pipeline_mode_t current_mode;
 
 	// Handle the event type.
 	switch(event)
 	{
 		case SEEKCAMERA_MANAGER_EVENT_CONNECT:
 			handle_camera_connect(camera, event_status, user_data);
+			if(seekcamera_set_pipeline_mode(camera, SEEKCAMERA_IMAGE_SEEKVISION) == SEEKCAMERA_SUCCESS){
+				seekcamera_get_pipeline_mode(camera, &current_mode);
+				std::cout << "Filter pipeline mode: " << seekcamera_pipeline_mode_get_str(current_mode) << std::endl;
+			}
 			break;
 		case SEEKCAMERA_MANAGER_EVENT_DISCONNECT:
 			handle_camera_disconnect(camera, event_status, user_data);
@@ -211,4 +216,27 @@ bool Camera::seekrenderer_switch_color_palette()
 		//std::cout << "color palette: " << seekcamera_color_palette_get_str(current_palette) << std::endl;
 	}
 	return seekcamera_set_color_palette(renderer->camera, current_palette) == SEEKCAMERA_SUCCESS;
+}
+
+bool Camera::seekrenderer_switch_pipeline_mode()
+{
+	seekrenderer_t* renderer;
+	// get value for current filter mode
+	seekcamera_pipeline_mode_t current_mode;
+
+	for(auto& kvp : this->g_renderers)
+    {
+        renderer = kvp.second;
+		if(!renderer->is_active.load()){
+			return false;
+		}
+		if(seekcamera_get_pipeline_mode(renderer->camera, &current_mode) != SEEKCAMERA_SUCCESS){
+			return false;
+		}
+
+		// Rotate through smoothing filter values and cycle back to the beginning once SEEKVISION is hit
+		current_mode = (seekcamera_pipeline_mode_t)((current_mode + 1) % SEEKCAMERA_IMAGE_LASTVALUE);
+		std::cout << "Filter pipeline mode: " << seekcamera_pipeline_mode_get_str(current_mode) << std::endl;
+	}
+	return seekcamera_set_pipeline_mode(renderer->camera, current_mode) == SEEKCAMERA_SUCCESS;
 }

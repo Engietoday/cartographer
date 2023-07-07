@@ -52,7 +52,13 @@ class Camera : public ISubject<seekframe_t*>{
         bool switch_color_pallete(){
             return this->seekrenderer_switch_color_palette();
         };
+
+        bool switch_pipeline_mode(){
+            return this->seekrenderer_switch_pipeline_mode();
+        };
+
         bool seekrenderer_switch_color_palette();
+        bool seekrenderer_switch_pipeline_mode();
         void seekrenderer_close_window(seekrenderer_t* renderer);
 
         uint8_t init();

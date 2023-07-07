@@ -1,3 +1,0 @@
-/home/prismadyanmics/github/cartographer/build/CMakeFiles/rebuild_cache.dir
-/home/prismadyanmics/github/cartographer/build/CMakeFiles/edit_cache.dir
-/home/prismadyanmics/github/cartographer/build/CMakeFiles/cartographer.dir
